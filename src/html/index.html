@@ -136,7 +136,7 @@
         // a.campos.cor = cor definida no JSON
         styleEl.appendChild(document.createTextNode(`
       .vis-item.${a.identificador_arquivo} {
-        background-color: ${a.campos.cor};
+        background-color: ${a.cor};
       }
     `));
       });
@@ -165,7 +165,8 @@
         // Para cada linha, guarda os campos e a categoria (identificador_arquivo)
         dados.forEach(r => {
           r.__campos = match.campos;
-          r.categoria = match.identificador_arquivo; // <-- nova propriedade
+          r.categoria = match.identificador_arquivo;
+          r.nome_categoria = match.nome;
         });
 
         registros.push(...dados);
@@ -196,10 +197,9 @@
           start: parseDateBR(inicioBR),
           end: parseDateBR(fimBR),
           className: r.categoria,
-          title: r.categoria
+          title: r.nome_categoria
         };
-        items.add(item);
-        console.log(`${item.start.toLocaleDateString()} --- ${item.end.toLocaleDateString()} --- ${item.content}`);
+        items.add(item);        
       });
 
       timeline.setItems(items);

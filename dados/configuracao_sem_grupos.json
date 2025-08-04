@@ -3,25 +3,25 @@
       {
         "nome": "Férias",        
         "identificador_arquivo": "ferias",
+        "cor": "blue",
         "separador": ";",
         "campos": {
           "id": "id_servidor",
           "nome": "nome",
           "inicio": "data_inicio",
-          "fim": "data_fim",
-          "cor": "blue"          
+          "fim": "data_fim"                
         }
       },
       {
         "nome": "Deslocamentos",        
         "identificador_arquivo":"deslocamentos",
         "separador": ",",
+        "cor": "#ff6e33",
         "campos": {
           "id": "id_servidor",
           "nome": "nome",
           "inicio": "inicio",
-          "fim": "fim",
-          "cor": "#ff6e33"         
+          "fim": "fim"                   
         }
       }
     ]
