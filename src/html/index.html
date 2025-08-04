@@ -23,18 +23,6 @@
     .controls button {
       margin: 5px;
     }
-
-    #dropZone {
-      border: 2px dashed #bbb;
-      padding: 10px;
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    #dropZone.dragover {
-      border-color: #666;
-      background: #f0f0f0;
-    }
   </style>
 </head>
 
@@ -50,7 +38,6 @@
     <input type="file" id="fileInput" style="display:none" />
   </div>
 
-  <div id="dropZone">Arraste arquivos JSON ou CSV aqui</div>
   <div id="timeline"></div>
 
   <script>
@@ -80,15 +67,7 @@
       document.getElementById("btnLoadConfig").onclick = () => selecionarArquivo("json", carregarConfigArquivo);
       document.getElementById("btnLoadCSV").onclick = () => selecionarArquivo("csv", carregarCSVArquivo);
       document.getElementById("btnSaveAll").onclick = salvarCalendarioCompleto;
-      document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);
-
-      const dropZone = document.getElementById("dropZone");
-      dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
-      dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
-      dropZone.addEventListener("drop", e => {
-        e.preventDefault(); dropZone.classList.remove("dragover");
-        [...e.dataTransfer.files].forEach(f => processarArquivoDrop(f));
-      });
+      document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);      
     }
 
     function resetarTimeline() {
