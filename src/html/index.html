@@ -115,7 +115,7 @@
         const sep = identificarSeparador(text);
         const dados = parseCSV(text, sep);
         // Identificar arquivo correspondente no config
-        const match = config.arquivos.find(a => file.name.includes(a.arquivo || ""));
+        const match = config.arquivos.find(a => file.name.includes(a.identificador_arquivo || ""));
         if(!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
         dados.forEach(r => r.__campos = match.campos);
         registros.push(...dados);

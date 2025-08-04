@@ -1,9 +1,8 @@
 {
     "arquivos": [
       {
-        "nome": "Férias",
-        "url": "../../dados/ferias.csv",
-        "arquivo": "ferias.csv",
+        "nome": "Férias",        
+        "identificador_arquivo": "ferias",
         "separador": ";",
         "campos": {
           "id": "id_servidor",
@@ -15,9 +14,8 @@
         }
       },
       {
-        "nome": "Deslocamentos",
-        "url": "../../dados/deslocamentos.csv",
-        "arquivo":"deslocamentos.csv",
+        "nome": "Deslocamentos",        
+        "identificador_arquivo":"deslocamentos",
         "separador": ",",
         "campos": {
           "id": "id_servidor",
