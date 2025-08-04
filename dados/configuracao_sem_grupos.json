@@ -1,0 +1,27 @@
+{
+    "arquivos": [
+      {
+        "nome": "Férias",        
+        "identificador_arquivo": "ferias",
+        "separador": ";",
+        "campos": {
+          "id": "id_servidor",
+          "nome": "nome",
+          "inicio": "data_inicio",
+          "fim": "data_fim"          
+        }
+      },
+      {
+        "nome": "Deslocamentos",        
+        "identificador_arquivo":"deslocamentos",
+        "separador": ",",
+        "campos": {
+          "id": "id_servidor",
+          "nome": "nome",
+          "inicio": "inicio",
+          "fim": "fim"          
+        }
+      }
+    ]
+  }
+  

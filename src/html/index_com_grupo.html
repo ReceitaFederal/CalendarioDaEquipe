@@ -57,7 +57,7 @@
     let config = null;
     let registros = [];
     let container, timeline;
-    let items;
+    let groups, items;
 
     document.addEventListener("DOMContentLoaded", () => {
       container = document.getElementById("timeline");
@@ -67,12 +67,13 @@
     });
 
     function inicializarEstruturas() {
+      groups = new vis.DataSet();
       items = new vis.DataSet();
     }
 
     function inicializarTimeline() {
       const options = { stack: true, orientation: 'top', margin: { item: 10, axis: 5 } };
-      timeline = new vis.Timeline(container, items, options);
+      timeline = new vis.Timeline(container, items, groups, options);
     }
 
     function configurarEventos() {
@@ -93,6 +94,7 @@
 
     function resetarTimeline() {
       inicializarEstruturas();
+      timeline.setGroups(groups);
       timeline.setItems(items);
       config = null;
       registros = [];
@@ -102,10 +104,13 @@
       const input = document.getElementById("fileInput");
       input.accept = tipo === "json" ? ".json" : ".csv";
       input.onchange = e => {
+        console.log(e.target.files[0]);
+        console.dir(e);
         if (e.target.files[0]) {
           callback(e.target.files[0]);
         }
       };
+
       input.click();
     }
 
@@ -126,6 +131,7 @@
       lerArquivo(file).then(text => {
         const sep = identificarSeparador(text);
         const dados = parseCSV(text, sep);
+        // Identificar arquivo correspondente no config
         const match = config.arquivos.find(a => file.name.includes(a.identificador_arquivo || ""));
         if (!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
         dados.forEach(r => r.__campos = match.campos);
@@ -135,25 +141,78 @@
     }
 
     function atualizarTimeline() {
+      // esvazia as estruturas
+      groups.clear();
       items.clear();
 
       if (registros.length === 0) return;
 
+      const c0 = registros[0].__campos;
+      const temGrupos = c0.equipe || c0.equipe_pai || c0.equipe_pai2;
+
+      // --- se tiver definição de grupos, monta a hierarquia ---
+      if (temGrupos) {
+        let nextId = 1;
+        const m1 = new Map(), m2 = new Map(), m3 = new Map();
+
+        // coleta nomes únicos e atribui ID
+        registros.forEach(r => {
+          const c = r.__campos;
+          const n1 = r[c.equipe_pai2], n2 = r[c.equipe_pai], n3 = r[c.equipe];
+          if (n1 && !m1.has(n1)) m1.set(n1, nextId++);
+          if (n2 && !m2.has(n2)) m2.set(n2, nextId++);
+          if (n3 && !m3.has(n3)) m3.set(n3, nextId++);
+        });
+
+        // cria os grupos nos níveis 1, 2 e 3
+        m1.forEach((id, nome) => {
+          const filhos = Array.from(m2.entries())
+            .filter(([, id2]) => {
+              // encontra quais equipes-pai2 têm itens em m2
+              return registros.some(r => r[c0.equipe_pai2] === nome && m2.get(r[c0.equipe_pai]) === id2);
+            })
+            .map(([, id2]) => id2);
+          groups.add({ id, content: nome, treeLevel: 1, nestedGroups: filhos });
+        });
+        m2.forEach((id, nome) => {
+          const filhos = Array.from(m3.entries())
+            .filter(([, id3]) => {
+              return registros.some(r => r[c0.equipe_pai] === nome && m3.get(r[c0.equipe]) === id3);
+            })
+            .map(([, id3]) => id3);
+          groups.add({ id, content: nome, treeLevel: 2, nestedGroups: filhos });
+        });
+        m3.forEach((id, nome) => {
+          groups.add({ id, content: nome, treeLevel: 3 });
+        });
+      }
+
+      // **sempre** informa ao Timeline o dataset de grupos (vazio ou não)
+      timeline.setGroups(groups);
+
+      // agora adiciona TODOS os itens, seja pra mostrar em grupos ou não
       registros.forEach(r => {
         const c = r.__campos;
         if (!r[c.inicio] || !r[c.fim]) return;
 
         const item = {
+          // **template literal** para gerar uma string de ID única
           id: `${r[c.id]}-${r[c.inicio]}`,
           content: r[c.nome],
           start: r[c.inicio],
           end: r[c.fim]
         };
+        // se houver grupos, atribui; caso contrário fica sem a propriedade
+        if (temGrupos) {
+          item.group = m3.get(r[c.equipe]) || null;
+        }
         items.add(item);
       });
 
+      // atualiza itens no Timeline
       timeline.setItems(items);
     }
+
 
     function salvarCalendarioCompleto() {
       if (!config) { alert("Nenhuma configuração carregada."); return; }
