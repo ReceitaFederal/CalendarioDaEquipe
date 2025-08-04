@@ -1,0 +1,14 @@
+id_servidor,nome,inicio,fim,equipe,equipe_pai
+001,João Silva,2025-06-15,2025-06-20,Contratos,Logística
+001,João Silva,2025-06-30,2025-07-05,Contratos,Logística
+00a,Ana,2025-06-01,2025-06-10,Contratos,Logística
+00a,Ana,2025-06-15,2025-06-20,Contratos,Logística
+00a,Ana,2025-06-25,2025-06-30,Contratos,Logística
+00b,Pedro,2025-06-05,2025-06-15,Contratos,Logística
+00b,Pedro,2025-06-20,2025-06-30,Contratos,Logística
+002,Maria Souza,2025-07-10,2025-07-12,Licitações,Logística
+002,Maria Souza,2025-07-20,2025-07-25,Licitações,Logística
+002,Maria Souza,2025-08-01,2025-08-03,Licitações,Logística
+003,Reginaldo Rossi,2025-06-01,2025-06-03,Custos,Logística
+003,Reginaldo Rossi,2025-07-01,2025-07-03,Custos,Logística
+003,Reginaldo Rossi,2025-08-01,2025-08-10,Custos,Logística

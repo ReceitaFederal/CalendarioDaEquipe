@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Timeline da Equipe</title>
+
+  <!-- CSS do vis.js -->
+  <link
+    href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Script clássico do vis.js -->
+  <script
+    src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"
+    defer
+  ></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #timeline {
+      border: 1px solid #ddd;
+      height: 600px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Timeline da Equipe</h1>
+  <div id="timeline"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      inicializarTimeline().catch(err => console.error(err));
+    });
+
+    async function inicializarTimeline() {
+      const config = await carregarJSON("../../dados/configuracao.json");
+      const container = document.getElementById("timeline");
+
+      // Carrega todos os registros de todos os arquivos
+      const registros = [];
+      for (const arquivo of config.arquivos) {
+        const textoCSV = await carregarCSV(arquivo.url);
+        const dados = parseCSV(textoCSV, arquivo.separador);
+        dados.forEach(r => r.__campos = arquivo.campos);
+        registros.push(...dados);
+      }
+
+      // Mapas para atribuir IDs únicos a cada nível de grupo
+      let nextId = 1;
+      const mapaNivel1 = new Map(); // equipe_pai2
+      const mapaNivel2 = new Map(); // equipe_pai
+      const mapaNivel3 = new Map(); // equipe (nível folha)
+
+      registros.forEach(r => {
+        const campos = r.__campos;
+        const n1 = campos.equipe_pai2 && r[campos.equipe_pai2];
+        if (n1 && !mapaNivel1.has(n1)) mapaNivel1.set(n1, nextId++);
+
+        const n2 = campos.equipe_pai && r[campos.equipe_pai];
+        if (n2 && !mapaNivel2.has(n2)) mapaNivel2.set(n2, nextId++);
+
+        const n3 = campos.equipe && r[campos.equipe];
+        if (n3 && !mapaNivel3.has(n3)) mapaNivel3.set(n3, nextId++);
+      });
+
+      // Constrói DataSet de grupos com hierarquia
+      const groups = new vis.DataSet();
+      const campos = config.arquivos[0].campos; // supõe mesmo padrão de campos
+
+      // Nível 1 (equipe_pai2)
+      mapaNivel1.forEach((id, nome) => {
+        const filhos = new Set();
+        registros.forEach(r => {
+          if (r[campos.equipe_pai2] === nome && r[campos.equipe_pai] && mapaNivel2.has(r[campos.equipe_pai])) {
+            filhos.add(mapaNivel2.get(r[campos.equipe_pai]));
+          }
+        });
+        groups.add({ id, content: nome, treeLevel: 1, nestedGroups: Array.from(filhos) });
+      });
+
+      // Nível 2 (equipe_pai)
+      mapaNivel2.forEach((id, nome) => {
+        const filhos = new Set();
+        registros.forEach(r => {
+          if (r[campos.equipe_pai] === nome && r[campos.equipe] && mapaNivel3.has(r[campos.equipe])) {
+            filhos.add(mapaNivel3.get(r[campos.equipe]));
+          }
+        });
+        groups.add({ id, content: nome, treeLevel: 2, nestedGroups: Array.from(filhos) });
+      });
+
+      // Nível 3 (equipe) – folhas
+      mapaNivel3.forEach((id, nome) => {
+        groups.add({ id, content: nome, treeLevel: 3 });
+      });
+
+      // Constrói DataSet de itens
+      const items = new vis.DataSet(
+        registros
+          .map(r => {
+            const c = r.__campos;
+            const start = r[c.inicio];
+            const end   = r[c.fim];
+            if (!start || !end) return null;
+            const grupoId = mapaNivel3.get(r[c.equipe]);
+            return {
+              id: `${r[c.id]}-${start}`,
+              content: r[c.nome],
+              start,
+              end,
+              group: grupoId
+            };
+          })
+          .filter(Boolean)
+      );
+
+      // Opções da timeline
+      const options = {
+        stack: true,
+        orientation: 'top',
+        margin: { item: 10, axis: 5 }
+      };
+
+      // Inicializa a Timeline
+      new vis.Timeline(container, items, groups, options);
+    }
+
+    // Funções auxiliares
+    async function carregarJSON(url) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Falha ao carregar JSON: ${url}`);
+      return resp.json();
+    }
+
+    async function carregarCSV(url) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Falha ao carregar CSV: ${url}`);
+      return resp.text();
+    }
+
+    function parseCSV(texto, separador = ",") {
+      const linhas = texto.trim().split("\n");
+      const cabecalho = linhas.shift().split(separador).map(h => h.trim());
+      return linhas.map(linha => {
+        const cols = linha.split(separador).map(c => c.trim());
+        return Object.fromEntries(cabecalho.map((h, i) => [h, cols[i]]));
+      });
+    }
+  </script>
+</body>
+</html>

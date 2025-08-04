@@ -1,0 +1,31 @@
+{
+    "arquivos": [
+      {
+        "nome": "Férias",
+        "url": "../../dados/ferias.csv",
+        "separador": ";",
+        "campos": {
+          "id": "id_servidor",
+          "nome": "nome",
+          "inicio": "data_inicio",
+          "fim": "data_fim",
+          "equipe": "equipe",
+          "equipe_pai": "equipe_pai"
+        }
+      },
+      {
+        "nome": "Deslocamentos",
+        "url": "../../dados/deslocamentos.csv",
+        "separador": ",",
+        "campos": {
+          "id": "id_servidor",
+          "nome": "nome",
+          "inicio": "inicio",
+          "fim": "fim",
+          "equipe": "equipe",
+          "equipe_pai": "equipe_pai"
+        }
+      }
+    ]
+  }
+  
