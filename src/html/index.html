@@ -35,14 +35,6 @@
       border-color: #666;
       background: #f0f0f0;
     }
-
-    .vis-item.ferias {
-      background-color: #ff9e59;
-    }
-
-    .vis-item.deslocamentos {
-      background-color: #00c3ff;
-    }
   </style>
 </head>
 
@@ -126,7 +118,30 @@
       lerArquivo(file).then(text => {
         config = JSON.parse(text);
         console.log("Configuração carregada", config);
+        gerarEstilosDinamicos();
       });
+    }
+
+    function gerarEstilosDinamicos() {
+      // Remove estilo anterior, se existir
+      let old = document.getElementById("dynamic-timeline-styles");
+      if (old) old.remove();
+
+      // Cria novo <style>
+      const styleEl = document.createElement("style");
+      styleEl.id = "dynamic-timeline-styles";
+
+      config.arquivos.forEach(a => {
+        // a.identificador_arquivo = 'ferias' ou 'deslocamentos'
+        // a.campos.cor = cor definida no JSON
+        styleEl.appendChild(document.createTextNode(`
+      .vis-item.${a.identificador_arquivo} {
+        background-color: ${a.campos.cor};
+      }
+    `));
+      });
+
+      document.head.appendChild(styleEl);
     }
 
     function carregarCSVArquivo(file) {
@@ -180,7 +195,8 @@
           content: `<strong>${r[c.nome]}</strong>`,
           start: parseDateBR(inicioBR),
           end: parseDateBR(fimBR),
-          className: r.categoria
+          className: r.categoria,
+          title: r.categoria
         };
         items.add(item);
         console.log(`${item.start.toLocaleDateString()} --- ${item.end.toLocaleDateString()} --- ${item.content}`);

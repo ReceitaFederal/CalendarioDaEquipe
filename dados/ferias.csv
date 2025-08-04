@@ -1,5 +1,5 @@
 id_servidor;nome;data_inicio;data_fim;equipe;equipe_pai
-001;João Silva;2025-05-01;2025-06-01;Contratos;Logística
-002;Maria Souza;2025-09-01;2025-09-20;Custos;Logística
-002;Maria Souza;2025-12-20;2025-12-31;Custos;Logística
-003;Reginaldo Rossi;2025-09-01;2025-10-01;Custos;Logística
+001;João Silva;01/05/2025;01/06/2025;Contratos;Logística
+002;Maria Souza;01/09/2025;20/09/2025;Custos;Logística
+002;Maria Souza;20/12/2025;31/12/2025;Custos;Logística
+003;Reginaldo Rossi;01/09/2025;01/10/2025;Custos;Logística
