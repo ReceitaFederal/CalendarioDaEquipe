@@ -20,8 +20,11 @@
       margin-top: 10px;
     }
 
-    .controls button {
+    .controls button,
+    .controls input,
+    .controls label {
       margin: 5px;
+      vertical-align: middle;
     }
   </style>
 </head>
@@ -35,6 +38,10 @@
     <button id="btnLoadCSV">Carregar CSV</button>
     <button id="btnSaveAll">Salvar Calendário Completo</button>
     <button id="btnLoadAll">Carregar Calendário Completo</button>
+    <!-- Novo campo para tamanho da equipe -->
+    <label for="teamSizeInput">Tamanho equipe:</label>
+    <input type="number" id="teamSizeInput" min="0" value="10" style="width:60px;" />
+    <button id="btnCalcDisp">Calcular Disponibilidade</button>
     <input type="file" id="fileInput" style="display:none" />
   </div>
 
@@ -58,7 +65,11 @@
     }
 
     function inicializarTimeline() {
-      const options = { stack: true, orientation: 'top', margin: { item: 10, axis: 5 } };
+      const options = {
+        stack: true,
+        orientation: 'top',
+        margin: { item: 10, axis: 5 }
+      };
       timeline = new vis.Timeline(container, items, options);
     }
 
@@ -67,7 +78,8 @@
       document.getElementById("btnLoadConfig").onclick = () => selecionarArquivo("json", carregarConfigArquivo);
       document.getElementById("btnLoadCSV").onclick = () => selecionarArquivo("csv", carregarCSVArquivo);
       document.getElementById("btnSaveAll").onclick = salvarCalendarioCompleto;
-      document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);      
+      document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);
+      document.getElementById("btnCalcDisp").onclick = gerarDisponibilidade;
     }
 
     function resetarTimeline() {
@@ -88,11 +100,6 @@
       input.click();
     }
 
-    function processarArquivoDrop(file) {
-      if (file.name.endsWith(".json")) carregarConfigArquivo(file);
-      else if (file.name.endsWith(".csv")) carregarCSVArquivo(file);
-    }
-
     function carregarConfigArquivo(file) {
       lerArquivo(file).then(text => {
         config = JSON.parse(text);
@@ -102,85 +109,57 @@
     }
 
     function gerarEstilosDinamicos() {
-      // Remove estilo anterior, se existir
       let old = document.getElementById("dynamic-timeline-styles");
       if (old) old.remove();
-
-      // Cria novo <style>
       const styleEl = document.createElement("style");
       styleEl.id = "dynamic-timeline-styles";
-
       config.arquivos.forEach(a => {
-        // a.identificador_arquivo = 'ferias' ou 'deslocamentos'
-        // a.campos.cor = cor definida no JSON
-        styleEl.appendChild(document.createTextNode(`
-      .vis-item.${a.identificador_arquivo} {
-        background-color: ${a.cor};
-      }
-    `));
+        styleEl.appendChild(document.createTextNode(
+          `.vis-item.${a.identificador_arquivo} { background-color: ${a.cor}; }\n`
+        ));
       });
-
       document.head.appendChild(styleEl);
     }
 
     function carregarCSVArquivo(file) {
-      if (!config) {
-        alert("Carregue primeiro uma configuração JSON.");
-        return;
-      }
+      if (!config) { alert("Carregue primeiro uma configuração JSON."); return; }
       lerArquivo(file).then(text => {
         const sep = identificarSeparador(text);
         const dados = parseCSV(text, sep);
-
-        // Encontra qual entrada da configuração corresponde a este CSV
-        const match = config.arquivos.find(a =>
-          file.name.includes(a.identificador_arquivo || "")
-        );
-        if (!match) {
-          alert("CSV não corresponde a nenhuma entrada na configuração.");
-          return;
-        }
-
-        // Para cada linha, guarda os campos e a categoria (identificador_arquivo)
+        const match = config.arquivos.find(a => file.name.includes(a.identificador_arquivo || ""));
+        if (!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
         dados.forEach(r => {
           r.__campos = match.campos;
           r.categoria = match.identificador_arquivo;
           r.nome_categoria = match.nome;
         });
-
         registros.push(...dados);
         atualizarTimeline();
       });
     }
 
-    // Converte "DD/MM/YYYY" em um objeto Date
     function parseDateBR(str) {
       const [dia, mes, ano] = str.split('/');
-      // mês-1 pois em JS janeiro = 0
       return new Date(+ano, mes - 1, +dia);
     }
 
     function atualizarTimeline() {
       items.clear();
       if (registros.length === 0) return;
-
       registros.forEach(r => {
         const c = r.__campos;
         const inicioBR = r[c.inicio];
         const fimBR = r[c.fim];
         if (!inicioBR || !fimBR) return;
-
-        const item = {
+        items.add({
           id: `${r[c.id]}-${inicioBR}`,
           content: `<strong>${r[c.nome]}</strong>`,
           start: parseDateBR(inicioBR),
           end: parseDateBR(fimBR),
           className: r.categoria,
           title: r.nome_categoria
-        };
-        items.add(item);        
+        });
       });
-
       timeline.setItems(items);
     }
 
@@ -223,6 +202,76 @@
         const cols = l.split(sep).map(c => c.trim());
         return Object.fromEntries(cab.map((h, i) => [h, cols[i]]));
       });
+    }
+
+    // --- NOVAS FUNÇÕES DE DISPONIBILIDADE ---
+    function gerarDisponibilidade() {
+      const size = parseInt(document.getElementById('teamSizeInput').value, 10);
+      const daily = calcularDisponibilidade(size);
+      const periods = agruparPeriodos(daily);
+      adicionarItensDisponibilidade(periods, size);
+    }
+
+    function calcularDisponibilidade(size) {
+      const daily = [];
+      if (registros.length === 0) return daily;
+      // determina intervalo
+      let minDate = Infinity, maxDate = -Infinity;
+      registros.forEach(r => {
+        const start = parseDateBR(r.__campos.inicio ? r[r.__campos.inicio] : r.inicio);
+        const end = parseDateBR(r.__campos.fim ? r[r.__campos.fim] : r.fim);
+        minDate = Math.min(minDate, start);
+        maxDate = Math.max(maxDate, end);
+      });
+      let curr = new Date(minDate);
+      curr.setHours(0,0,0,0);
+      const last = new Date(maxDate);
+      last.setHours(0,0,0,0);
+      while (curr <= last) {
+        const date = new Date(curr);
+        const busy = registros.filter(r => {
+          const start = parseDateBR(r.__campos.inicio ? r[r.__campos.inicio] : r.inicio);
+          const end = parseDateBR(r.__campos.fim ? r[r.__campos.fim] : r.fim);
+          return date >= start && date <= end;
+        }).length;
+        daily.push({ date: new Date(date), avail: size - busy });
+        curr.setDate(curr.getDate() + 1);
+      }
+      return daily;
+    }
+
+    function agruparPeriodos(daily) {
+      const periods = [];
+      if (daily.length === 0) return periods;
+      let start = daily[0].date;
+      let current = daily[0].avail;
+      for (let i = 1; i < daily.length; i++) {
+        if (daily[i].avail !== current) {
+          periods.push({ start, end: daily[i-1].date, avail: current });
+          start = daily[i].date;
+          current = daily[i].avail;
+        }
+      }
+      periods.push({ start, end: daily[daily.length-1].date, avail: current });
+      return periods;
+    }
+
+    function adicionarItensDisponibilidade(periods, size) {
+      // remove antigos background
+      items.get({ filter: item => item.type === 'background' }).forEach(it => items.remove(it.id));
+      periods.forEach((p, i) => {
+        const ratio = size > 0 ? p.avail / size : 0;
+        const g = Math.round(ratio * 255);
+        const color = `rgb(0,${g},0)`;
+        items.add({
+          id: `disp-${i}`,
+          type: 'background',
+          start: p.start,
+          end: new Date(p.end.getTime() + 24*60*60*1000), // final do dia
+          style: `background-color: ${color};`
+        });
+      });
+      timeline.setItems(items);
     }
   </script>
 </body>
