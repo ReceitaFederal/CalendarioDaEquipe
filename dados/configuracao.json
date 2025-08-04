@@ -3,6 +3,7 @@
       {
         "nome": "Férias",
         "url": "../../dados/ferias.csv",
+        "arquivo": "ferias.csv",
         "separador": ";",
         "campos": {
           "id": "id_servidor",
@@ -16,6 +17,7 @@
       {
         "nome": "Deslocamentos",
         "url": "../../dados/deslocamentos.csv",
+        "arquivo":"deslocamentos.csv",
         "separador": ",",
         "campos": {
           "id": "id_servidor",

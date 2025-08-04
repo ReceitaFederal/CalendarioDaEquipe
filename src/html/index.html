@@ -4,150 +4,201 @@
   <meta charset="UTF-8">
   <title>Timeline da Equipe</title>
 
-  <!-- CSS do vis.js -->
   <link
     href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css"
     rel="stylesheet"
   />
-
-  <!-- Script clássico do vis.js -->
   <script
     src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"
     defer
   ></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    #timeline {
-      border: 1px solid #ddd;
-      height: 600px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #timeline { border: 1px solid #ddd; height: 600px; margin-top: 10px; }
+    .controls button { margin: 5px; }
+    #dropZone { border: 2px dashed #bbb; padding: 10px; text-align: center; margin-bottom: 10px; }
+    #dropZone.dragover { border-color: #666; background: #f0f0f0; }
   </style>
 </head>
 <body>
   <h1>Timeline da Equipe</h1>
+
+  <div class="controls">
+    <button id="btnReset">Resetar Timeline</button>
+    <button id="btnLoadConfig">Carregar Configuração</button>
+    <button id="btnLoadCSV">Carregar CSV</button>
+    <button id="btnSaveAll">Salvar Calendário Completo</button>
+    <button id="btnLoadAll">Carregar Calendário Completo</button>
+    <input type="file" id="fileInput" style="display:none" />
+  </div>
+
+  <div id="dropZone">Arraste arquivos JSON ou CSV aqui</div>
   <div id="timeline"></div>
 
   <script>
+    let config = null;
+    let registros = [];
+    let container, timeline;
+    let groups, items;
+
     document.addEventListener("DOMContentLoaded", () => {
-      inicializarTimeline().catch(err => console.error(err));
+      container = document.getElementById("timeline");
+      inicializarEstruturas();
+      inicializarTimeline();
+      configurarEventos();
     });
 
-    async function inicializarTimeline() {
-      const config = await carregarJSON("../../dados/configuracao.json");
-      const container = document.getElementById("timeline");
+    function inicializarEstruturas() {
+      groups = new vis.DataSet();
+      items  = new vis.DataSet();
+    }
 
-      // Carrega todos os registros de todos os arquivos
-      const registros = [];
-      for (const arquivo of config.arquivos) {
-        const textoCSV = await carregarCSV(arquivo.url);
-        const dados = parseCSV(textoCSV, arquivo.separador);
-        dados.forEach(r => r.__campos = arquivo.campos);
-        registros.push(...dados);
-      }
+    function inicializarTimeline() {
+      const options = { stack:true, orientation:'top', margin:{item:10, axis:5} };
+      timeline = new vis.Timeline(container, items, groups, options);
+    }
 
-      // Mapas para atribuir IDs únicos a cada nível de grupo
-      let nextId = 1;
-      const mapaNivel1 = new Map(); // equipe_pai2
-      const mapaNivel2 = new Map(); // equipe_pai
-      const mapaNivel3 = new Map(); // equipe (nível folha)
+    function configurarEventos() {
+      document.getElementById("btnReset").onclick = resetarTimeline;
+      document.getElementById("btnLoadConfig").onclick = () => selecionarArquivo("json", carregarConfigArquivo);
+      document.getElementById("btnLoadCSV").onclick = () => selecionarArquivo("csv", carregarCSVArquivo);
+      document.getElementById("btnSaveAll").onclick = salvarCalendarioCompleto;
+      document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);
 
-      registros.forEach(r => {
-        const campos = r.__campos;
-        const n1 = campos.equipe_pai2 && r[campos.equipe_pai2];
-        if (n1 && !mapaNivel1.has(n1)) mapaNivel1.set(n1, nextId++);
-
-        const n2 = campos.equipe_pai && r[campos.equipe_pai];
-        if (n2 && !mapaNivel2.has(n2)) mapaNivel2.set(n2, nextId++);
-
-        const n3 = campos.equipe && r[campos.equipe];
-        if (n3 && !mapaNivel3.has(n3)) mapaNivel3.set(n3, nextId++);
+      const dropZone = document.getElementById("dropZone");
+      dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+      dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault(); dropZone.classList.remove("dragover");
+        [...e.dataTransfer.files].forEach(f => processarArquivoDrop(f));
       });
+    }
 
-      // Constrói DataSet de grupos com hierarquia
-      const groups = new vis.DataSet();
-      const campos = config.arquivos[0].campos; // supõe mesmo padrão de campos
+    function resetarTimeline() {
+      inicializarEstruturas();
+      timeline.setGroups(groups);
+      timeline.setItems(items);
+      config = null;
+      registros = [];
+    }
 
-      // Nível 1 (equipe_pai2)
-      mapaNivel1.forEach((id, nome) => {
-        const filhos = new Set();
-        registros.forEach(r => {
-          if (r[campos.equipe_pai2] === nome && r[campos.equipe_pai] && mapaNivel2.has(r[campos.equipe_pai])) {
-            filhos.add(mapaNivel2.get(r[campos.equipe_pai]));
-          }
-        });
-        groups.add({ id, content: nome, treeLevel: 1, nestedGroups: Array.from(filhos) });
-      });
-
-      // Nível 2 (equipe_pai)
-      mapaNivel2.forEach((id, nome) => {
-        const filhos = new Set();
-        registros.forEach(r => {
-          if (r[campos.equipe_pai] === nome && r[campos.equipe] && mapaNivel3.has(r[campos.equipe])) {
-            filhos.add(mapaNivel3.get(r[campos.equipe]));
-          }
-        });
-        groups.add({ id, content: nome, treeLevel: 2, nestedGroups: Array.from(filhos) });
-      });
-
-      // Nível 3 (equipe) – folhas
-      mapaNivel3.forEach((id, nome) => {
-        groups.add({ id, content: nome, treeLevel: 3 });
-      });
-
-      // Constrói DataSet de itens
-      const items = new vis.DataSet(
-        registros
-          .map(r => {
-            const c = r.__campos;
-            const start = r[c.inicio];
-            const end   = r[c.fim];
-            if (!start || !end) return null;
-            const grupoId = mapaNivel3.get(r[c.equipe]);
-            return {
-              id: `${r[c.id]}-${start}`,
-              content: r[c.nome],
-              start,
-              end,
-              group: grupoId
-            };
-          })
-          .filter(Boolean)
-      );
-
-      // Opções da timeline
-      const options = {
-        stack: true,
-        orientation: 'top',
-        margin: { item: 10, axis: 5 }
+    function selecionarArquivo(tipo, callback) {
+      const input = document.getElementById("fileInput");
+      input.accept = tipo === "json" ? ".json" : ".csv";
+      input.onchange = e => { 
+        console.log (e.target.files[0]);
+        console.dir(e);
+        if(e.target.files[0]){
+          callback(e.target.files[0]); 
+        }
       };
 
-      // Inicializa a Timeline
-      new vis.Timeline(container, items, groups, options);
+      input.click();
     }
 
-    // Funções auxiliares
-    async function carregarJSON(url) {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`Falha ao carregar JSON: ${url}`);
-      return resp.json();
+    function processarArquivoDrop(file) {
+      if(file.name.endsWith(".json")) carregarConfigArquivo(file);
+      else if(file.name.endsWith(".csv")) carregarCSVArquivo(file);
     }
 
-    async function carregarCSV(url) {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`Falha ao carregar CSV: ${url}`);
-      return resp.text();
+    function carregarConfigArquivo(file) {
+      lerArquivo(file).then(text => {
+        config = JSON.parse(text);
+        console.log("Configuração carregada", config);
+      });
     }
 
-    function parseCSV(texto, separador = ",") {
-      const linhas = texto.trim().split("\n");
-      const cabecalho = linhas.shift().split(separador).map(h => h.trim());
-      return linhas.map(linha => {
-        const cols = linha.split(separador).map(c => c.trim());
-        return Object.fromEntries(cabecalho.map((h, i) => [h, cols[i]]));
+    function carregarCSVArquivo(file) {
+      if(!config) { alert("Carregue primeiro uma configuração JSON."); return; }
+      lerArquivo(file).then(text => {
+        const sep = identificarSeparador(text);
+        const dados = parseCSV(text, sep);
+        // Identificar arquivo correspondente no config
+        const match = config.arquivos.find(a => file.name.includes(a.arquivo || ""));
+        if(!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
+        dados.forEach(r => r.__campos = match.campos);
+        registros.push(...dados);
+        atualizarTimeline();
+      });
+    }
+
+    function atualizarTimeline() {
+      groups.clear(); items.clear();
+
+      let nextId=1;
+      const m1=new Map(), m2=new Map(), m3=new Map();
+
+      registros.forEach(r => {
+        const c=r.__campos;
+        const n1=r[c.equipe_pai2], n2=r[c.equipe_pai], n3=r[c.equipe];
+        if(n1 && !m1.has(n1)) m1.set(n1,nextId++);
+        if(n2 && !m2.has(n2)) m2.set(n2,nextId++);
+        if(n3 && !m3.has(n3)) m3.set(n3,nextId++);
+      });
+
+      const c0=registros[0]?.__campos;
+      if(!c0) return;
+
+      m1.forEach((id,nome)=>{
+        const filhos=new Set();
+        registros.forEach(r=>{ if(r[c0.equipe_pai2]===nome && r[c0.equipe_pai] && m2.has(r[c0.equipe_pai])) filhos.add(m2.get(r[c0.equipe_pai])); });
+        groups.add({id,content:nome,treeLevel:1,nestedGroups:[...filhos]});
+      });
+      m2.forEach((id,nome)=>{
+        const filhos=new Set();
+        registros.forEach(r=>{ if(r[c0.equipe_pai]===nome && r[c0.equipe] && m3.has(r[c0.equipe])) filhos.add(m3.get(r[c0.equipe])); });
+        groups.add({id,content:nome,treeLevel:2,nestedGroups:[...filhos]});
+      });
+      m3.forEach((id,nome)=>groups.add({id,content:nome,treeLevel:3}));
+
+      registros.forEach(r=>{
+        const c=r.__campos; if(!r[c.inicio]||!r[c.fim]) return;
+        items.add({id:`${r[c.id]}-${r[c.inicio]}`,content:r[c.nome],start:r[c.inicio],end:r[c.fim],group:m3.get(r[c.equipe])});
+      });
+
+      timeline.setGroups(groups);
+      timeline.setItems(items);
+    }
+
+    function salvarCalendarioCompleto() {
+      if(!config) { alert("Nenhuma configuração carregada."); return; }
+      const dados={config,registros};
+      const blob=new Blob([JSON.stringify(dados)],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download="calendario_completo.json";a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function carregarCalendarioCompleto(file) {
+      lerArquivo(file).then(text=>{
+        const obj=JSON.parse(text);
+        config=obj.config;
+        registros=obj.registros;
+        atualizarTimeline();
+      });
+    }
+
+    function lerArquivo(file) {
+      return new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=e=>res(e.target.result);
+        r.onerror=e=>rej(e);
+        r.readAsText(file);
+      });
+    }
+
+    function identificarSeparador(text) {
+      return text.includes(";") ? ";" : ",";
+    }
+
+    function parseCSV(texto, sep=",") {
+      const linhas=texto.trim().split("\n");
+      const cab=linhas.shift().split(sep).map(h=>h.trim());
+      return linhas.map(l=> {
+        const cols=l.split(sep).map(c=>c.trim());
+        return Object.fromEntries(cab.map((h,i)=>[h,cols[i]]));
       });
     }
   </script>
