@@ -8,7 +8,8 @@
           "id": "id_servidor",
           "nome": "nome",
           "inicio": "data_inicio",
-          "fim": "data_fim"          
+          "fim": "data_fim",
+          "cor": "blue"          
         }
       },
       {
@@ -19,7 +20,8 @@
           "id": "id_servidor",
           "nome": "nome",
           "inicio": "inicio",
-          "fim": "fim"          
+          "fim": "fim",
+          "cor": "#ff6e33"         
         }
       }
     ]

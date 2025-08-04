@@ -35,6 +35,14 @@
       border-color: #666;
       background: #f0f0f0;
     }
+
+    .vis-item.ferias {
+      background-color: #ff9e59;
+    }
+
+    .vis-item.deslocamentos {
+      background-color: #00c3ff;
+    }
   </style>
 </head>
 
@@ -122,34 +130,60 @@
     }
 
     function carregarCSVArquivo(file) {
-      if (!config) { alert("Carregue primeiro uma configuração JSON."); return; }
+      if (!config) {
+        alert("Carregue primeiro uma configuração JSON.");
+        return;
+      }
       lerArquivo(file).then(text => {
         const sep = identificarSeparador(text);
         const dados = parseCSV(text, sep);
-        const match = config.arquivos.find(a => file.name.includes(a.identificador_arquivo || ""));
-        if (!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
-        dados.forEach(r => r.__campos = match.campos);
+
+        // Encontra qual entrada da configuração corresponde a este CSV
+        const match = config.arquivos.find(a =>
+          file.name.includes(a.identificador_arquivo || "")
+        );
+        if (!match) {
+          alert("CSV não corresponde a nenhuma entrada na configuração.");
+          return;
+        }
+
+        // Para cada linha, guarda os campos e a categoria (identificador_arquivo)
+        dados.forEach(r => {
+          r.__campos = match.campos;
+          r.categoria = match.identificador_arquivo; // <-- nova propriedade
+        });
+
         registros.push(...dados);
         atualizarTimeline();
       });
     }
 
+    // Converte "DD/MM/YYYY" em um objeto Date
+    function parseDateBR(str) {
+      const [dia, mes, ano] = str.split('/');
+      // mês-1 pois em JS janeiro = 0
+      return new Date(+ano, mes - 1, +dia);
+    }
+
     function atualizarTimeline() {
       items.clear();
-
       if (registros.length === 0) return;
 
       registros.forEach(r => {
         const c = r.__campos;
-        if (!r[c.inicio] || !r[c.fim]) return;
+        const inicioBR = r[c.inicio];
+        const fimBR = r[c.fim];
+        if (!inicioBR || !fimBR) return;
 
         const item = {
-          id: `${r[c.id]}-${r[c.inicio]}`,
-          content: r[c.nome],
-          start: r[c.inicio],
-          end: r[c.fim]
+          id: `${r[c.id]}-${inicioBR}`,
+          content: `<strong>${r[c.nome]}</strong>`,
+          start: parseDateBR(inicioBR),
+          end: parseDateBR(fimBR),
+          className: r.categoria
         };
         items.add(item);
+        console.log(`${item.start.toLocaleDateString()} --- ${item.end.toLocaleDateString()} --- ${item.content}`);
       });
 
       timeline.setItems(items);
