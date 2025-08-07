@@ -1,6 +1,17 @@
 {
     "arquivos": [
       {
+        "tipo": "membros",
+        "nome": "Membros",        
+        "identificador_arquivo": "membros",
+        "separador": ",",
+        "campos": {
+          "id": "cpf",
+          "nome": "nome"               
+        }
+      },
+      {
+        "tipo": "periodos",
         "nome": "Férias",        
         "identificador_arquivo": "ferias",
         "cor": "blue",
@@ -13,6 +24,7 @@
         }
       },
       {
+        "tipo": "periodos",
         "nome": "Deslocamentos",        
         "identificador_arquivo":"deslocamentos",
         "separador": ",",

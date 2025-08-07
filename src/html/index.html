@@ -60,9 +60,6 @@
     <button id="btnLoadCSV">Carregar CSV</button>
     <button id="btnSaveAll">Salvar Calendário Completo</button>
     <button id="btnLoadAll">Carregar Calendário Completo</button>
-    <!-- Novo campo para tamanho da equipe -->
-    <label for="teamSizeInput">Tamanho equipe:</label>
-    <input type="number" id="teamSizeInput" min="0" value="10" style="width:60px;" />
     <button id="btnCalcDisp">Calcular Disponibilidade</button>
     <input type="file" id="fileInput" style="display:none" />
   </div>
@@ -73,6 +70,9 @@
   <script>
     let config = null;
     let registros = [];
+    // Map para guardar id ↔ nome dos membros
+    let membrosMap = new Map();
+
     let container, timeline;
     let items;
 
@@ -145,7 +145,7 @@
       });
       document.head.appendChild(styleEl);
     }
-    
+
     function gerarLegenda() {
       const legend = document.getElementById('legend');
       legend.innerHTML = '';
@@ -166,8 +166,18 @@
       lerArquivo(file).then(text => {
         const sep = identificarSeparador(text);
         const dados = parseCSV(text, sep);
-        const match = config.arquivos.find(a => file.name.includes(a.identificador_arquivo || ""));
+
+        const match = config.arquivos.find(a => file.name.toLowerCase().includes(a.identificador_arquivo.toLowerCase() || ""));
         if (!match) { alert("CSV não corresponde a nenhuma entrada na configuração."); return; }
+
+        if (match.tipo === 'membros') {
+          dados.forEach(r =>
+            membrosMap.set(r[match.campos.id], r[match.campos.nome])
+          );
+          console.log("Membros carregados:", membrosMap);
+          return;
+        }
+
         dados.forEach(r => {
           r.__campos = match.campos;
           r.categoria = match.identificador_arquivo;
@@ -246,7 +256,7 @@
 
     // --- NOVAS FUNÇÕES DE DISPONIBILIDADE ---
     function gerarDisponibilidade() {
-      const size = parseInt(document.getElementById('teamSizeInput').value, 10);
+      const size = membrosMap.size;
       const daily = calcularDisponibilidade(size);
       const periods = agruparPeriodos(daily);
       adicionarItensDisponibilidade(periods, size);
