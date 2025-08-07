@@ -48,6 +48,15 @@
       margin-right: 6px;
       border: 1px solid #ccc;
     }
+
+    /* Highlight “super legal” */
+    .vis-item.highlighted {
+
+      border: 3px solid #000000 !important;
+
+      box-shadow: 0 0 12px 4px rgba(0, 0, 0, 0.8);
+
+    }
   </style>
 </head>
 
@@ -109,6 +118,27 @@
         margin: { item: 10, axis: 5 }
       };
       timeline = new vis.Timeline(container, items, options);
+
+      // Toggle de destaque: clica para adicionar/remover em cada grupo de itens
+      timeline.on('click', function (properties) {
+        // somente age se clicou num item
+        if (!properties.item) return;
+
+        const baseId = properties.item.toString().split('-')[0];
+
+        // percorre cada item cujo id começa com baseId-
+        items.get()
+          .filter(it => it.id.toString().startsWith(baseId + '-'))
+          .forEach(it => {
+            const cls = it.className || '';
+            const isHighlighted = cls.includes('highlighted');
+            // monta nova classe
+            const newClass = isHighlighted
+              ? cls.replace(/\s*highlighted/g, '')     // remove highlight
+              : (cls + ' highlighted');                // adiciona highlight
+            items.update({ id: it.id, className: newClass });
+          });
+      });
     }
 
     function configurarEventos() {
@@ -213,6 +243,13 @@
       return new Date(+ano, mes - 1, +dia);
     }
 
+    function uid() {
+  // Usa crypto.randomUUID quando disponível (moderno)
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  // Fallback: timestamp + random (bom o suficiente p/ UI)
+  return (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toUpperCase();
+}
+
     function atualizarTimeline() {
       items.clear();
       if (registros.length === 0) return;
@@ -220,9 +257,12 @@
         const c = r.__campos;
         const inicioBR = r[c.inicio];
         const fimBR = r[c.fim];
+        const baseId = r[c.id]; 
+        const uniqueId = `${baseId}-${uid()}`;
+
         if (!inicioBR || !fimBR) return;
         items.add({
-          id: `${r[c.id]}-${inicioBR}`,
+          id: uniqueId,
           content: `<strong>${r[c.nome]}</strong>`,
           start: parseDateBR(inicioBR),
           end: parseDateBR(fimBR),
