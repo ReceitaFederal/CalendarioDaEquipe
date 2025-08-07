@@ -63,7 +63,22 @@
     <button id="btnCalcDisp">Calcular Disponibilidade</button>
     <input type="file" id="fileInput" style="display:none" />
   </div>
+  <!-- CONTROLES PARA INCLUIR PERÍODO MANUAL -->
+  <div id="novoPeriodo" class="controls" style="margin-top:10px;">
+    <label for="selMembro">Membro:</label>
+    <select id="selMembro"></select>
 
+    <label for="selTipo">Tipo:</label>
+    <select id="selTipo"></select>
+
+    <label for="dtInicioManual">Início:</label>
+    <input type="date" id="dtInicioManual" />
+
+    <label for="dtFimManual">Fim:</label>
+    <input type="date" id="dtFimManual" />
+
+    <button id="btnIncluir">Incluir</button>
+  </div>
   <div id="legend"></div>
   <div id="timeline"></div>
 
@@ -103,6 +118,7 @@
       document.getElementById("btnSaveAll").onclick = salvarCalendarioCompleto;
       document.getElementById("btnLoadAll").onclick = () => selecionarArquivo("json", carregarCalendarioCompleto);
       document.getElementById("btnCalcDisp").onclick = gerarDisponibilidade;
+      document.getElementById("btnIncluir").onclick = incluirPeriodoManual;
     }
 
     function resetarTimeline() {
@@ -129,6 +145,7 @@
         config = JSON.parse(text);
         console.log("Configuração carregada", config);
         gerarEstilosDinamicos();
+        popularSelectTipo();
         gerarLegenda();
       });
     }
@@ -150,14 +167,16 @@
       const legend = document.getElementById('legend');
       legend.innerHTML = '';
       config.arquivos.forEach(a => {
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        const box = document.createElement('div');
-        box.className = 'legend-color-box';
-        box.style.backgroundColor = a.cor;
-        item.appendChild(box);
-        item.appendChild(document.createTextNode(a.nome));
-        legend.appendChild(item);
+        if (a.tipo !== 'membros') {
+          const item = document.createElement('div');
+          item.className = 'legend-item';
+          const box = document.createElement('div');
+          box.className = 'legend-color-box';
+          box.style.backgroundColor = a.cor;
+          item.appendChild(box);
+          item.appendChild(document.createTextNode(a.nome));
+          legend.appendChild(item);
+        }
       });
     }
 
@@ -174,6 +193,7 @@
           dados.forEach(r =>
             membrosMap.set(r[match.campos.id], r[match.campos.nome])
           );
+          popularSelectMembro();
           console.log("Membros carregados:", membrosMap);
           return;
         }
@@ -322,6 +342,63 @@
         });
       });
       timeline.setItems(items);
+    }
+    // 3.1) Popular select de membros (após CSV de membros)
+    function popularSelectMembro() {
+      const sel = document.getElementById("selMembro");
+      sel.innerHTML = '<option value="">Selecione</option>';
+      membrosMap.forEach((nome, id) => {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = nome;
+        sel.appendChild(o);
+      });
+    }
+
+    // 3.2) Popular select de tipos (após carregar config JSON)
+    function popularSelectTipo() {
+      const sel = document.getElementById("selTipo");
+      sel.innerHTML = '<option value="">Selecione</option>';
+      config.arquivos.forEach(a => {
+        if (a.tipo !== 'membros') {
+          const o = document.createElement("option");
+          o.value = a.identificador_arquivo;
+          o.textContent = a.nome;
+          sel.appendChild(o);
+        }
+      });
+    }
+
+    // 3.3) Formata “yyyy-mm-dd” para “dd/mm/yyyy”
+    function formatarDataParaBR(iso) {
+      const [y, m, d] = iso.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    // 3.4) Inclui o período manual na timeline
+    function incluirPeriodoManual() {
+      const idMembro = document.getElementById("selMembro").value;
+      const tipo = document.getElementById("selTipo").value;
+      const inicio = document.getElementById("dtInicioManual").value;
+      const fim = document.getElementById("dtFimManual").value;
+
+      if (!idMembro || !tipo || !inicio || !fim) {
+        alert("Preencha todos os campos para incluir o período.");
+        return;
+      }
+
+      const cfg = config.arquivos.find(a => a.identificador_arquivo === tipo);
+      const reg = {};
+      reg[cfg.campos.id] = idMembro;
+      reg[cfg.campos.nome] = membrosMap.get(idMembro);
+      reg[cfg.campos.inicio] = formatarDataParaBR(inicio);
+      reg[cfg.campos.fim] = formatarDataParaBR(fim);
+      reg.__campos = cfg.campos;
+      reg.categoria = cfg.identificador_arquivo;
+      reg.nome_categoria = cfg.nome;
+
+      registros.push(reg);
+      atualizarTimeline();
     }
   </script>
 </body>
