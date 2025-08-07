@@ -26,6 +26,28 @@
       margin: 5px;
       vertical-align: middle;
     }
+
+    /* Legenda */
+    #legend {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 15px;
+      font-size: 14px;
+    }
+
+    .legend-color-box {
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 
@@ -45,6 +67,7 @@
     <input type="file" id="fileInput" style="display:none" />
   </div>
 
+  <div id="legend"></div>
   <div id="timeline"></div>
 
   <script>
@@ -87,6 +110,7 @@
       timeline.setItems(items);
       config = null;
       registros = [];
+      document.getElementById('legend').innerHTML = '';
     }
 
     function selecionarArquivo(tipo, callback) {
@@ -105,6 +129,7 @@
         config = JSON.parse(text);
         console.log("Configuração carregada", config);
         gerarEstilosDinamicos();
+        gerarLegenda();
       });
     }
 
@@ -119,6 +144,21 @@
         ));
       });
       document.head.appendChild(styleEl);
+    }
+    
+    function gerarLegenda() {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      config.arquivos.forEach(a => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const box = document.createElement('div');
+        box.className = 'legend-color-box';
+        box.style.backgroundColor = a.cor;
+        item.appendChild(box);
+        item.appendChild(document.createTextNode(a.nome));
+        legend.appendChild(item);
+      });
     }
 
     function carregarCSVArquivo(file) {
@@ -224,9 +264,9 @@
         maxDate = Math.max(maxDate, end);
       });
       let curr = new Date(minDate);
-      curr.setHours(0,0,0,0);
+      curr.setHours(0, 0, 0, 0);
       const last = new Date(maxDate);
-      last.setHours(0,0,0,0);
+      last.setHours(0, 0, 0, 0);
       while (curr <= last) {
         const date = new Date(curr);
         const busy = registros.filter(r => {
@@ -247,12 +287,12 @@
       let current = daily[0].avail;
       for (let i = 1; i < daily.length; i++) {
         if (daily[i].avail !== current) {
-          periods.push({ start, end: daily[i-1].date, avail: current });
+          periods.push({ start, end: daily[i - 1].date, avail: current });
           start = daily[i].date;
           current = daily[i].avail;
         }
       }
-      periods.push({ start, end: daily[daily.length-1].date, avail: current });
+      periods.push({ start, end: daily[daily.length - 1].date, avail: current });
       return periods;
     }
 
@@ -267,7 +307,7 @@
           id: `disp-${i}`,
           type: 'background',
           start: p.start,
-          end: new Date(p.end.getTime() + 24*60*60*1000), // final do dia
+          end: new Date(p.end.getTime() + 24 * 60 * 60 * 1000), // final do dia
           style: `background-color: ${color};`
         });
       });
